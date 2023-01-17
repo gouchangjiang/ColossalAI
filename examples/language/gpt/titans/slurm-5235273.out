@@ -1,0 +1,61 @@
+SH-IDC1-10-140-1-4,SH-IDC1-10-140-1-6,SH-IDC1-10-140-1-7,SH-IDC1-10-140-1-8
+Traceback (most recent call last):
+  File "train_gpt.py", line 148, in <module>
+    main()
+  File "train_gpt.py", line 39, in main
+    colossalai.launch_from_slurm(config=args.config, host=args.host, port=29500, seed=42)
+  File "/mnt/petrelfs/gouchangjiang/anaconda3/envs/colossal/lib/python3.8/site-packages/colossalai/initialize.py", line 148, in launch_from_slurm
+    launch(config=config,
+  File "/mnt/petrelfs/gouchangjiang/anaconda3/envs/colossal/lib/python3.8/site-packages/colossalai/initialize.py", line 102, in launch
+    gpc.init_parallel_groups()
+  File "/mnt/petrelfs/gouchangjiang/anaconda3/envs/colossal/lib/python3.8/site-packages/colossalai/context/parallel_context.py", line 447, in init_parallel_groups
+    self.check_sanity()
+  File "/mnt/petrelfs/gouchangjiang/anaconda3/envs/colossal/lib/python3.8/site-packages/colossalai/context/parallel_context.py", line 400, in check_sanity
+    assert ws == dps * pps * \
+Traceback (most recent call last):
+  File "train_gpt.py", line 148, in <module>
+    main()
+  File "train_gpt.py", line 39, in main
+    colossalai.launch_from_slurm(config=args.config, host=args.host, port=29500, seed=42)
+  File "/mnt/petrelfs/gouchangjiang/anaconda3/envs/colossal/lib/python3.8/site-packages/colossalai/initialize.py", line 148, in launch_from_slurm
+    launch(config=config,
+  File "/mnt/petrelfs/gouchangjiang/anaconda3/envs/colossal/lib/python3.8/site-packages/colossalai/initialize.py", line 102, in launch
+    gpc.init_parallel_groups()
+  File "/mnt/petrelfs/gouchangjiang/anaconda3/envs/colossal/lib/python3.8/site-packages/colossalai/context/parallel_context.py", line 447, in init_parallel_groups
+    self.check_sanity()
+  File "/mnt/petrelfs/gouchangjiang/anaconda3/envs/colossal/lib/python3.8/site-packages/colossalai/context/parallel_context.py", line 400, in check_sanity
+    assert ws == dps * pps * \
+Traceback (most recent call last):
+  File "train_gpt.py", line 148, in <module>
+    main()
+  File "train_gpt.py", line 39, in main
+    colossalai.launch_from_slurm(config=args.config, host=args.host, port=29500, seed=42)
+  File "/mnt/petrelfs/gouchangjiang/anaconda3/envs/colossal/lib/python3.8/site-packages/colossalai/initialize.py", line 148, in launch_from_slurm
+    launch(config=config,
+  File "/mnt/petrelfs/gouchangjiang/anaconda3/envs/colossal/lib/python3.8/site-packages/colossalai/initialize.py", line 102, in launch
+    gpc.init_parallel_groups()
+  File "/mnt/petrelfs/gouchangjiang/anaconda3/envs/colossal/lib/python3.8/site-packages/colossalai/context/parallel_context.py", line 447, in init_parallel_groups
+    self.check_sanity()
+  File "/mnt/petrelfs/gouchangjiang/anaconda3/envs/colossal/lib/python3.8/site-packages/colossalai/context/parallel_context.py", line 400, in check_sanity
+    assert ws == dps * pps * \
+Traceback (most recent call last):
+  File "train_gpt.py", line 148, in <module>
+    main()
+  File "train_gpt.py", line 39, in main
+    colossalai.launch_from_slurm(config=args.config, host=args.host, port=29500, seed=42)
+  File "/mnt/petrelfs/gouchangjiang/anaconda3/envs/colossal/lib/python3.8/site-packages/colossalai/initialize.py", line 148, in launch_from_slurm
+    launch(config=config,
+  File "/mnt/petrelfs/gouchangjiang/anaconda3/envs/colossal/lib/python3.8/site-packages/colossalai/initialize.py", line 102, in launch
+    gpc.init_parallel_groups()
+  File "/mnt/petrelfs/gouchangjiang/anaconda3/envs/colossal/lib/python3.8/site-packages/colossalai/context/parallel_context.py", line 447, in init_parallel_groups
+    self.check_sanity()
+  File "/mnt/petrelfs/gouchangjiang/anaconda3/envs/colossal/lib/python3.8/site-packages/colossalai/context/parallel_context.py", line 400, in check_sanity
+    assert ws == dps * pps * \
+AssertionError: Expected the world size 4 to be equal to data parallel size (0) * pipeline parallel size (4) * tensor parallel size (2)
+AssertionError: Expected the world size 4 to be equal to data parallel size (0) * pipeline parallel size (4) * tensor parallel size (2)
+AssertionError: Expected the world size 4 to be equal to data parallel size (0) * pipeline parallel size (4) * tensor parallel size (2)
+AssertionError: Expected the world size 4 to be equal to data parallel size (0) * pipeline parallel size (4) * tensor parallel size (2)
+srun: error: SH-IDC1-10-140-1-8: task 3: Exited with exit code 1
+srun: error: SH-IDC1-10-140-1-6: task 1: Exited with exit code 1
+srun: error: SH-IDC1-10-140-1-7: task 2: Exited with exit code 1
+srun: error: SH-IDC1-10-140-1-4: task 0: Exited with exit code 1

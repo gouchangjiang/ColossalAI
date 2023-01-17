@@ -294,9 +294,11 @@ def GPT3_pipeline_1D(num_chunks=1, checkpoint=False, dtype=torch.float, embed_sp
     return _build_gpt_pipeline_1d(96, num_chunks, fused=fused, **cfg)
 
 
+# 1.5 Billion
 def GPT2_exlarge_pipeline_hybrid(num_chunks=1, checkpoint=False, dtype=torch.float, embed_split_hidden=False):
+    # https://huggingface.co/gpt2-xl/blob/main/config.json
     cfg = dict(hidden_size=1600,
-               num_attention_heads=32,
+               num_attention_heads=25,
                checkpoint=checkpoint,
                dtype=dtype,
                embed_split_hidden=embed_split_hidden)
