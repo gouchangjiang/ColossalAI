@@ -60,6 +60,7 @@ def main():
             return input_ids, attention_mask
 
         # 10 iterations
+        print(f'---debug---, batch size from gpc.config: {gpc.config.BATCH_SIZE}')
         input_ids, attn_mask = get_data(gpc.config.BATCH_SIZE * 10, gpc.config.SEQ_LEN, VOCAB_SIZE)
         from torch.utils.data import DataLoader, Dataset
 
