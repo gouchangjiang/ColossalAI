@@ -21,7 +21,7 @@ optimizer = dict(
     weight_decay=1e-2,
 )
 
-model = dict(type=GPT3_pipeline_hybrid, checkpoint=True, num_chunks=1)
+model = dict(type=GPT2_exlarge_pipeline_hybrid, checkpoint=True, num_chunks=1)
 
 # pipeline parallel: modify integer value for the number of pipeline stages
 # tensor parallel: modify size to set the tensor parallel size, usually the number of GPUs per node
