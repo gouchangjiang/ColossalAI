@@ -7,8 +7,8 @@ from colossalai.zero.shard_utils import TensorShardStrategy
 BATCH_SIZE = 4
 NUM_EPOCHS = 60
 SEQ_LEN = 1024 # 2048
-NUM_MICRO_BATCHES = 4
-HIDDEN_SIZE = 12288
+NUM_MICRO_BATCHES = 12 #192 = 12*16
+HIDDEN_SIZE = 1600 #12288
 TENSOR_SHAPE = (BATCH_SIZE // NUM_MICRO_BATCHES, SEQ_LEN, HIDDEN_SIZE)
 
 # if you do no want zero, just comment out this dictionary
@@ -21,7 +21,7 @@ optimizer = dict(
     weight_decay=1e-2,
 )
 
-model = dict(type=GPT3_pipeline_hybrid, checkpoint=True, num_chunks=1)
+model = dict(type=GPT2_exlarge_pipeline_hybrid, checkpoint=True, num_chunks=1)
 
 # pipeline parallel: modify integer value for the number of pipeline stages
 # tensor parallel: modify size to set the tensor parallel size, usually the number of GPUs per node
