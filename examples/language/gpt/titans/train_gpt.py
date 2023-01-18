@@ -37,7 +37,7 @@ def main():
     if args.from_torch:
         colossalai.launch_from_torch(config=args.config)
     else:
-        colossalai.launch_from_slurm(config=args.config, host=args.host, port=29505, seed=42)
+        colossalai.launch_from_slurm(config=args.config, host=args.host, port=29508, seed=42)
     logger = get_dist_logger()
 
     data_path = None if args.use_dummy_dataset else os.environ['DATA']
