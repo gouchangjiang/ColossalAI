@@ -52,12 +52,16 @@ class BaseSchedule(ABC):
 
     def _get_batch_size(self, data):
         if isinstance(data, torch.Tensor):
+            print(f'---debug---, instance of torch.tensor，{data.size()}')
             return data.size(0)
         elif isinstance(data, (list, tuple)):
+            print(f'---debug---, instance of list or tuple')
             if isinstance(data[0], dict):
+                print(f'---debug---, instance of list or tuple of dict')
                 return data[0][list(data[0].keys())[0]].size(0)
             return data[0].size(0)
         elif isinstance(data, dict):
+            print(f'---debug---, instance of dict')
             return data[list(data.keys())[0]].size(0)
 
     def load_batch(self, data_iter, to_gpu=True):

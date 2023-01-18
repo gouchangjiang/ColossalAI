@@ -128,7 +128,7 @@ class PipelineSchedule(BaseSchedule):
         batch_data = super().load_batch(data_iter, to_gpu=False)
         self.microbatch_offset = 0
         assert self.batch_size % self.num_microbatches == 0, \
-            "Batch size should divided by the number of microbatches"
+            f"Batch size should divided by the number of microbatches, {self.batch_size}, {self.num_microbatches}"
         self.microbatch_size = self.batch_size // self.num_microbatches
         self.batch_data = batch_data
 
