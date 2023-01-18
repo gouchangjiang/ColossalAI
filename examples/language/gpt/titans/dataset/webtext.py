@@ -40,4 +40,9 @@ class WebtextDataset(Dataset):
         return len(self.data)
 
     def __getitem__(self, index):
+<<<<<<< fc6f37526175753cf22758e30514fca85d2561bb
         return {'input_ids': self.data[index], 'attention_mask': self.attention_mask[index]}, self.data[index]
+=======
+        return {'input_ids': self.data[index],
+            'attention_mask': self.attention_mask[index]}, self.data[index]
+>>>>>>> temp

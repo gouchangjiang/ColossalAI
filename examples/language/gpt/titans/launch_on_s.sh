@@ -17,7 +17,6 @@ head_node=${nodes_array[0]}
 
 srun python \
    train_gpt.py \
-   --config 'configs/gpt3_zero3_pp1d.py' \
+   --config 'configs/gpt2_small_zero3_pp1d.py' \
    --host $head_node \
    --use_dummy_dataset
-
