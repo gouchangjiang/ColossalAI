@@ -4,9 +4,9 @@ from model import GPT3_pipeline_hybrid
 from colossalai.nn.optimizer import HybridAdam
 from colossalai.zero.shard_utils import TensorShardStrategy
 
-BATCH_SIZE = 192
+BATCH_SIZE = 4
 NUM_EPOCHS = 60
-SEQ_LEN = 2048
+SEQ_LEN = 1024 # 2048
 NUM_MICRO_BATCHES = 4
 HIDDEN_SIZE = 12288
 TENSOR_SHAPE = (BATCH_SIZE // NUM_MICRO_BATCHES, SEQ_LEN, HIDDEN_SIZE)

@@ -30,13 +30,13 @@ VOCAB_SIZE = 50257
 def main():
     parser = colossalai.get_default_parser()
     parser.add_argument('--from_torch', default=False, action='store_true')
-    parser.add_argument('--use_dummy_dataset', default=True, action='store_true')
+    parser.add_argument('--use_dummy_dataset', default=False, action='store_false')
     args = parser.parse_args()
     disable_existing_loggers()
     if args.from_torch:
         colossalai.launch_from_torch(config=args.config)
     else:
-        colossalai.launch_from_slurm(config=args.config, host=args.host, port=29500, seed=42)
+        colossalai.launch_from_slurm(config=args.config, host=args.host, port=29505, seed=42)
     logger = get_dist_logger()
 
     if not args.use_dummy_dataset:
