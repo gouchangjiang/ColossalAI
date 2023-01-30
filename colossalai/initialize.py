@@ -92,7 +92,6 @@ def launch(config: Union[str, Path, Config, Dict],
     if not isinstance(config, Config) and isinstance(config, dict):
         config = Config(config)
     if isinstance(config, (str, Path)):
-        print(f'---debug---, this one is expected. str: {config}')
         config = Config.from_file(config)
     gpc.load_config(config)
 
