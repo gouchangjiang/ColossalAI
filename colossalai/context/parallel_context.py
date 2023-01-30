@@ -399,7 +399,7 @@ class ParallelContext(metaclass=SingletonMeta):
         ws = self.world_size
         assert ws == dps * pps * \
             tps, f"Expected the world size {ws} to be equal to data" \
-                 f" parallel size ({dps}) * pipeline parallel size " \
+                 f" parallel size ({dps}+1) * pipeline parallel size " \
                  f"({pps}) * tensor parallel size ({tps})"
 
     def _set_parallel_size_from_config(self, config: dict, key: str, attr_name: str):
