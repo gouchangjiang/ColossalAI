@@ -3,8 +3,8 @@ set -x
 export DISTPLAN=${DISTPLAN:-"colossalai"}
 
 # The following options only valid when DISTPLAN="colossalai"
-export GPUNUM=${GPUNUM:-4}
-export TPDEGREE=${TPDEGREE:-2}
+export GPUNUM=${GPUNUM:-8}
+export TPDEGREE=${TPDEGREE:-8}
 export PLACEMENT=${PLACEMENT:-"cpu"}
 export USE_SHARD_INIT=${USE_SHARD_INIT:-False}
 export BATCH_SIZE=${BATCH_SIZE:-16}

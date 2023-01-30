@@ -152,13 +152,17 @@ def checkpoint(function, activation_offload, *args, use_reentrant: bool = True):
         Output of running function with provided args.
     """
     if use_reentrant:
-        return CheckpointFunction.apply(function, activation_offload, *args)
+        temp = CheckpointFunction.apply(function, activation_offload, *args)
+        print('---debug--, stop at line 156 of file activation_checkpoint.py')
+        return temp
     else:
-        return _checkpoint_without_reentrant(
+        temp = _checkpoint_without_reentrant(
             function,
             activation_offload,
             *args,
         )
+        print('---debug--, stop at line 164 of file activation_checkpoint.py')
+        return temp
 
 
 def _checkpoint_without_reentrant(function, activation_offload=False, *args):
