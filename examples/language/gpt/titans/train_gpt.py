@@ -18,7 +18,7 @@ from colossalai.utils.timer import MultiTimer
 from colossalai.zero.init_ctx import ZeroInitContext
 
 
-def calc_local_model_size(model: torch.nn.Module):
+def calc_local_model_size(model):
     numel_per_device = 0
     for p in model.parameters():
         numel_per_device += p.numel()
@@ -31,7 +31,7 @@ VOCAB_SIZE = 50257
 def main():
     parser = colossalai.get_default_parser()
     parser.add_argument('--from_torch', default=False, action='store_true')
-    parser.add_argument('--use_dummy_dataset', default=False, action='store_false')
+    parser.add_argument('--use_dummy_dataset', default=False, action='store_true')
     args = parser.parse_args()
     disable_existing_loggers()
     if args.from_torch:

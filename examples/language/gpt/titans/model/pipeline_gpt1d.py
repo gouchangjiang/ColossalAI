@@ -47,13 +47,13 @@ class GenericPipelineGPT(nn.Module):
         attention_mask = attention_mask.to(dtype=hidden_states.dtype)    # fp16 compatibility
         attention_mask = (1.0 - attention_mask) * -10000.0
         idx = 1 # for debug
-        print(f'---debug---, lengh of blocks: {len(self.blocks)}')
+        # print(f'---debug---, lengh of blocks: {len(self.blocks)}')
         for block in self.blocks:
             hidden_states, attention_mask = block(hidden_states, attention_mask)
-            print(f'---debug---, block_{idx} forward done.')
+            # print(f'---debug---, block_{idx} forward done.')
             idx+=1
         if self.norm is not None:
-            print('---debug---, the final layer norm.')
+            # print('---debug---, the final layer norm.')
             hidden_states = self.head(self.norm(hidden_states))
         return hidden_states
 
