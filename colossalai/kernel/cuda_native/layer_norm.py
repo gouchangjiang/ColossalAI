@@ -17,12 +17,12 @@ class FusedLayerNormAffineFunction(torch.autograd.Function):
     def forward(ctx, input, weight, bias, normalized_shape, eps):
         try:
             from colossalai._C import layer_norm
-            print('---debug---, import layer_norm from ._C, forward')
+            # print('---debug---, import layer_norm from ._C, forward')
 
         except ImportError:
             from colossalai.kernel.op_builder.layernorm import LayerNormBuilder
             layer_norm = LayerNormBuilder().load()
-            print('---debug---, build and then load layer_norm, forward')
+            # print('---debug---, build and then load layer_norm, forward')
 
         ctx.normalized_shape = normalized_shape
         ctx.eps = eps
@@ -39,11 +39,11 @@ class FusedLayerNormAffineFunction(torch.autograd.Function):
     def backward(ctx, grad_output):
         try:
             from colossalai._C import layer_norm
-            print('---debug---, import layer_norm from ._C, backward')
+            # print('---debug---, import layer_norm from ._C, backward')
         except ImportError:
             from colossalai.kernel.op_builder.layernorm import LayerNormBuilder
             layer_norm = LayerNormBuilder().load()
-            print('---debug---, build and then load layer_norm, backward')
+            # print('---debug---, build and then load layer_norm, backward')
 
         input_, weight_, bias_, mean, invvar = ctx.saved_tensors
         grad_input = grad_weight = grad_bias = None
@@ -75,8 +75,11 @@ class MixedFusedLayerNorm(torch.nn.Module):
         init.zeros_(self.bias)
 
     def forward(self, input):
+        # print('---debug---, enter_function_FusedLayerNormAffineFunction')
+        temp_result = FusedLayerNormAffineFunction.apply(input, self.weight, self.bias, self.normalized_shape, self.eps)
+        # print('---debug---, out_function_FusedLayerNormAffineFunction')
 
-        return FusedLayerNormAffineFunction.apply(input, self.weight, self.bias, self.normalized_shape, self.eps)
+        return temp_result
 
     def __repr__(self):
         return f'MixedFusedLayerNorm(normalized_shape={self.normalized_shape}, eps={self.eps})'

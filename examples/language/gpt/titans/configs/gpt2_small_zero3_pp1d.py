@@ -27,6 +27,6 @@ model = dict(type=GPT2_small_pipeline_hybrid, checkpoint=True, num_chunks=1)
 # tensor parallel: modify size to set the tensor parallel size, usually the number of GPUs per node
 # for the current model implementation, mode can only be 1D or None
 parallel = dict(
-    pipeline=8,
-    tensor=dict(size=2, mode='1d'),
+    pipeline=4,
+    tensor=dict(size=4, mode='1d'),
 )

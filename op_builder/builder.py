@@ -100,7 +100,7 @@ class Builder(ABC):
         """
         return importlib.import_module(self.prebuilt_import_path)
 
-    def load(self, verbose=True):
+    def load(self, verbose=False):
         """
         load the kernel during runtime. If the kernel is not built during pip install, it will build the kernel.
         If the kernel is built during runtime, it will be stored in `~/.cache/colossalai/torch_extensions/`. If the
@@ -147,7 +147,7 @@ class Builder(ABC):
         build_duration = time.time() - start_build
         if verbose:
             print(f"Time to load {self.name} op: {build_duration} seconds")
-
+        
         return op_module
 
     def builder(self) -> 'CUDAExtension':
