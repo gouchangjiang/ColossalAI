@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --partition=llm
+#SBATCH --partition=caif_rd
 #SBATCH --job-name="test-nlp"
 #SBATCH --nodes=8
 #SBATCH --ntasks=64
