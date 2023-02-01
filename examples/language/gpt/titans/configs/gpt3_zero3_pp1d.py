@@ -4,7 +4,7 @@ from colossalai.nn.optimizer import HybridAdam
 from colossalai.zero.shard_utils import TensorShardStrategy
 
 BATCH_SIZE = 256 # 192
-NUM_EPOCHS = 60
+NUM_EPOCHS = 1
 SEQ_LEN = 2048
 NUM_MICRO_BATCHES = 256 # 192
 HIDDEN_SIZE = 12288
@@ -26,6 +26,6 @@ model = dict(type=GPT3_pipeline_hybrid, checkpoint=True, num_chunks=1)
 # tensor parallel: modify size to set the tensor parallel size, usually the number of GPUs per node
 # for the current model implementation, mode can only be 1D or None
 parallel = dict(
-    pipeline=8,
-    tensor=dict(size=4, mode='1d'),    # for the current model implementation, mode can only be 1D or None
+    pipeline=4,
+    tensor=dict(size=8, mode='1d'),    # for the current model implementation, mode can only be 1D or None
 )

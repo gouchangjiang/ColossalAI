@@ -23,6 +23,7 @@ __all__ = [
     'GPT2_exlarge_pipeline_hybrid',
     'GPT2_small_pipeline_hybrid',
     'GPT3_pipeline_hybrid',
+    'GPT162_pipeline_hybrid',
 ]
 
 
@@ -327,3 +328,13 @@ def GPT3_pipeline_hybrid(num_chunks=1, checkpoint=False, dtype=torch.float, embe
                dtype=dtype,
                embed_split_hidden=embed_split_hidden)
     return _build_gpt_pipeline_hybrid(96, num_chunks, **cfg)
+
+
+def GPT162_pipeline_hybrid(num_chunks=1, checkpoint=True, dtype=torch.float, embed_split_hidden=False):
+    cfg = dict(hidden_size=20480,
+               num_attention_heads=128,
+               checkpoint=checkpoint,
+               max_position_embeddings=2048,
+               dtype=dtype,
+               embed_split_hidden=embed_split_hidden)
+    return _build_gpt_pipeline_hybrid(32, num_chunks, **cfg)
