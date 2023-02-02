@@ -188,13 +188,16 @@ def main():
     set_cpu_maximum_parallelism()
     args = parse_args()
 
-    # if args.distplan not in ["colossalai", "torch_ddp", "torch_zero", "zero1", "zero2"]:
+    cofig_dict=dict(parallel=dict(
+        pipeline=1, tensor=dict(size=args.tp_degree, mode='1d')
+    ))
+
     if args.distplan not in ["CAI_ZeRO1", "CAI_ZeRO2", "CAI_Gemini", "Pytorch_DDP", "Pytorch_ZeRO"]:
         raise TypeError(f"{args.distplan} is error")
 
     # batch size per DP degree
     BATCH_SIZE = args.batch_size
-    SEQ_LEN = 1024
+    SEQ_LEN = 2048
     VOCAB_SIZE = 50257
 
     NUM_STEPS = args.train_step
@@ -202,10 +205,10 @@ def main():
     WARMUP_STEPS = 1
     assert WARMUP_STEPS < NUM_STEPS, "warmup steps should smaller than the total steps"
     assert (NUM_STEPS - WARMUP_STEPS) % 2 == 1, "the number of valid steps should be odd to take the median"
-    PROF_FLAG = False    # The flag of profiling, False by default
+    PROF_FLAG = True    # The flag of profiling, False by default
 
     disable_existing_loggers()
-    colossalai.launch_from_torch(config={})
+    colossalai.launch_from_torch(config=cofig_dict)
 
     logger = get_dist_logger()
     logger.info(f"{args.model_type}, {args.distplan}, batch size {BATCH_SIZE}", ranks=[0])
