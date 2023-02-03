@@ -25,7 +25,7 @@ def calc_local_model_size(model):
     return numel_per_device
 
 
-VOCAB_SIZE = 50257
+# VOCAB_SIZE = 50257
 
 
 def main():
@@ -49,7 +49,8 @@ def main():
                                             batch_size=gpc.config.BATCH_SIZE,
                                             pin_memory=True,
                                             shuffle=True,
-                                            drop_last=True)
+                                            drop_last=True,
+                                            num_workers=4)
 
     logger.info('Build model', ranks=[0])
     use_pipeline = is_using_pp()
