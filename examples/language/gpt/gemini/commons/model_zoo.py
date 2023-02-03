@@ -38,7 +38,8 @@ def gpt2_xl(checkpoint=True):
 
 
 def gpt2_6b(checkpoint=True): #5.9 billion precisely
-    return GPTLMModel(hidden_size=3840, num_layers=32, num_attention_heads=32, vocab_size=51200, checkpoint=checkpoint)
+    return GPTLMModel(hidden_size=3840, num_layers=32, num_attention_heads=32, 
+    max_seq_len=2048, vocab_size=51200, checkpoint=checkpoint)
 
 
 def gpt2_10b(checkpoint=True):

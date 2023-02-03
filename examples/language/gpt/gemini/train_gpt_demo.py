@@ -198,7 +198,7 @@ def main():
     # batch size per DP degree
     BATCH_SIZE = args.batch_size
     SEQ_LEN = 2048
-    VOCAB_SIZE = 50257
+    VOCAB_SIZE = 51200 #50257
 
     NUM_STEPS = args.train_step
 
@@ -220,6 +220,7 @@ def main():
     if args.distplan.startswith("CAI"):
         # all param must use the same process group.
         world_size = torch.distributed.get_world_size()
+        # print('build parameter shard process group')
         shard_pg = ProcessGroup(tp_degree=world_size) if args.shardinit else None
         default_dist_spec = ShardSpec([-1], [world_size]) if args.shardinit else None
 
@@ -233,6 +234,7 @@ def main():
                              default_pg=shard_pg):
             model = model_builder(args.model_type)(checkpoint=True)
 
+        # print('build tensor parallel process group')
         tp_pg = ProcessGroup(tp_degree=args.tp_degree)
         # Tensor Parallelism (TP)
         # You should notice that v0.1.10 is not compatible with TP degree > 1
@@ -348,7 +350,8 @@ def main():
 
     tflops_list.sort()
     median_index = ((NUM_STEPS - WARMUP_STEPS) >> 1) + WARMUP_STEPS
-    logger.info(f"Median TFLOPS is {tflops_list[median_index]:.3f}")
+    logger.info(f"Median process TFLOPS is {tflops_list[median_index]:.3f}")
+    logger.info(f"Achieved maximum TFLOPS is {max(tflops_list):.3f}")
     torch.cuda.synchronize()
 
 
