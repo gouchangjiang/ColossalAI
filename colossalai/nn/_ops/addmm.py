@@ -1,6 +1,6 @@
 import torch
 from colossalai.tensor.op_wrapper import colo_op_impl
-from colossalai.tensor import ComputePattern, ComputePattern, ComputeSpec, ColoTensor
+from colossalai.tensor import ComputePattern, ComputeSpec, ColoTensor
 from colossalai.tensor import distspec, ColoTensorSpec, ShardSpec, ReplicaSpec
 from ._utils import GeneralTensor, Number, convert_to_colo_tensor
 from ._utils import reduce_input, reduce_grad
