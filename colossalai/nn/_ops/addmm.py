@@ -59,6 +59,7 @@ def colo_addmm(input_tensor: GeneralTensor,
     """Handles ``__torch_function__`` dispatch for ``torch.nn.functional.linear``.
     This method computes a linear.
     """
+    # mat2 is assumed to be a ColoTensor
     # At least one of the tensor should be ColoTensor
     assert isinstance(mat2, ColoTensor)
     input_tensor = convert_to_colo_tensor(input_tensor, mat2.get_process_group())
