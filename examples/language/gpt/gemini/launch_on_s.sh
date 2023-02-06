@@ -20,6 +20,7 @@ export USE_SHARD_INIT=${USE_SHARD_INIT:-False}
 export BATCH_SIZE=${BATCH_SIZE:-4} # batch size per DP degree
 export MODEL_TYPE=${MODEL_TYPE:-"gpt2_6b"}
 export TRAIN_STEP=${TRAIN_STEP:-100}
+export DATASET_PATH=${DATASET_PATH:-"/mnt/petrelfs/share_data/cjgou/small-gpt-dataset.json"}
 # export PYTHONPATH=$PWD:$PYTHONPATH
 
 if [ ${USE_SHARD_INIT} = "True" ]; then
