@@ -240,6 +240,7 @@ def main():
                                             shuffle=True,
                                             drop_last=False,
                                             num_workers=0)
+        data_iter = iter(train_dataloader)
     except BaseException as e:
         logger.error(e)
 
@@ -333,7 +334,7 @@ def main():
         # we just use randomly generated data here
         # input_ids, attn_mask = get_data(BATCH_SIZE, SEQ_LEN, VOCAB_SIZE)
         try:
-            input_ids, attn_mask = get_real_data(iter(train_dataloader))
+            input_ids, attn_mask = get_real_data(data_iter)
         except BaseException as e:
             logger.error(e)
 
