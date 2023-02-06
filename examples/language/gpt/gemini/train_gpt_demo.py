@@ -6,17 +6,18 @@ import psutil
 import torch
 import torch.nn as nn
 from commons.model_zoo import model_builder
-from commons.utils import get_data, get_profile_context, get_tflops, get_time_stamp
 from commons.tensorboard import set_tensorboard_writer, get_tensorboard_writer
+from commons.utils import get_data, get_real_data, get_profile_context, get_tflops, get_time_stamp
 from packaging import version
 from torch.nn.parallel import DistributedDataParallel as DDP
+from dataset.webtext import WebtextDataset
 
 import colossalai
 from colossalai.logging import disable_existing_loggers, get_dist_logger
 from colossalai.nn.optimizer import HybridAdam
 from colossalai.nn.parallel import zero_model_wrapper, zero_optim_wrapper
 from colossalai.tensor import ColoParameter, ComputePattern, ComputeSpec, ProcessGroup, ReplicaSpec, ShardSpec
-from colossalai.utils import get_current_device
+from colossalai.utils import get_current_device, get_dataloader
 from colossalai.utils.model.colo_init_context import ColoInitContext
 
 CAI_VERSION = colossalai.__version__
@@ -71,6 +72,11 @@ def parse_args():
         type=str,
         default="./tensorboard",
         help="tensorboard working path",
+    )
+    parser.add_argument(
+        "--dataset_path",
+        type=str,
+        help="training dataset path",
     )
 
     args = parser.parse_args()
@@ -195,14 +201,17 @@ def main():
     set_cpu_maximum_parallelism()
     args = parse_args()
 
-    # if args.distplan not in ["colossalai", "torch_ddp", "torch_zero", "zero1", "zero2"]:
+    cofig_dict=dict(parallel=dict(
+        pipeline=1, tensor=dict(size=args.tp_degree, mode='1d')
+    ))
+
     if args.distplan not in ["CAI_ZeRO1", "CAI_ZeRO2", "CAI_Gemini", "Pytorch_DDP", "Pytorch_ZeRO"]:
         raise TypeError(f"{args.distplan} is error")
 
     # batch size per DP degree
     BATCH_SIZE = args.batch_size
-    SEQ_LEN = 1024
-    VOCAB_SIZE = 50257
+    SEQ_LEN = 2048
+    VOCAB_SIZE = 51200 #50257
 
     NUM_STEPS = args.train_step
 
@@ -212,11 +221,27 @@ def main():
     PROF_FLAG = False    # The flag of profiling, False by default
 
     disable_existing_loggers()
-    colossalai.launch_from_torch(config={})
+    colossalai.launch_from_torch(config=cofig_dict)
 
     logger = get_dist_logger()
     logger.info(f"{args.model_type}, {args.distplan}, batch size {BATCH_SIZE}", ranks=[0])
+    
+    # Init tensorboard
     set_tensorboard_writer(get_time_stamp(), args.tensorboard_path)
+    
+    # Init dataloader
+    try:
+        DARASET_PATH = args.dataset_path
+        train_ds = WebtextDataset(path=DARASET_PATH, seq_len=SEQ_LEN)
+        train_dataloader = get_dataloader(train_ds,
+                                            seed=42,
+                                            batch_size=BATCH_SIZE,
+                                            pin_memory=True,
+                                            shuffle=True,
+                                            drop_last=False,
+                                            num_workers=0)
+    except BaseException as e:
+        logger.error(e)
 
     # build criterion
     criterion = GPTLMLoss()
@@ -225,6 +250,7 @@ def main():
     if args.distplan.startswith("CAI"):
         # all param must use the same process group.
         world_size = torch.distributed.get_world_size()
+        # print('build parameter shard process group')
         shard_pg = ProcessGroup(tp_degree=world_size) if args.shardinit else None
         default_dist_spec = ShardSpec([-1], [world_size]) if args.shardinit else None
 
@@ -238,6 +264,7 @@ def main():
                              default_pg=shard_pg):
             model = model_builder(args.model_type)(checkpoint=True)
 
+        # print('build tensor parallel process group')
         tp_pg = ProcessGroup(tp_degree=args.tp_degree)
         # Tensor Parallelism (TP)
         # You should notice that v0.1.10 is not compatible with TP degree > 1
@@ -304,9 +331,13 @@ def main():
 
     def train_step():
         # we just use randomly generated data here
-        input_ids, attn_mask = get_data(BATCH_SIZE, SEQ_LEN, VOCAB_SIZE)
-        optimizer.zero_grad()
+        # input_ids, attn_mask = get_data(BATCH_SIZE, SEQ_LEN, VOCAB_SIZE)
+        try:
+            input_ids, attn_mask = get_real_data(iter(train_dataloader))
+        except BaseException as e:
+            logger.error(e)
 
+        optimizer.zero_grad()
         start = time()
         outputs = model(input_ids, attn_mask)
         loss = criterion(outputs, input_ids)
@@ -368,7 +399,8 @@ def main():
 
     tflops_list.sort()
     median_index = ((NUM_STEPS - WARMUP_STEPS) >> 1) + WARMUP_STEPS
-    logger.info(f"Median TFLOPS is {tflops_list[median_index]:.3f}")
+    logger.info(f"Median process TFLOPS is {tflops_list[median_index]:.3f}")
+    logger.info(f"Achieved maximum TFLOPS is {max(tflops_list):.3f}")
     torch.cuda.synchronize()
 
 

@@ -37,6 +37,11 @@ def gpt2_xl(checkpoint=True):
     return GPTLMModel(hidden_size=1600, num_layers=48, num_attention_heads=32, checkpoint=checkpoint)
 
 
+def gpt2_6b(checkpoint=True): #5.9 billion precisely
+    return GPTLMModel(hidden_size=3840, num_layers=32, num_attention_heads=32, 
+    max_seq_len=2048, vocab_size=51200, checkpoint=checkpoint)
+
+
 def gpt2_10b(checkpoint=True):
     return GPTLMModel(hidden_size=4096, num_layers=50, num_attention_heads=16, checkpoint=checkpoint)
 
@@ -66,6 +71,8 @@ def model_builder(model_size: str) -> callable:
         return gpt2_medium
     elif model_size == "gpt2_xl":
         return gpt2_xl
+    elif model_size == "gpt2_6b":
+        return gpt2_6b
     elif model_size == "gpt2_10b":
         return gpt2_10b
     elif model_size == "gpt2_14b":

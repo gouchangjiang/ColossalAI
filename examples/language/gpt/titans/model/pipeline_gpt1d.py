@@ -335,6 +335,7 @@ def GPT162_pipeline_hybrid(num_chunks=1, checkpoint=True, dtype=torch.float, emb
                num_attention_heads=128,
                checkpoint=checkpoint,
                max_position_embeddings=2048,
+               vocab_size=51200,
                dtype=dtype,
                embed_split_hidden=embed_split_hidden)
     return _build_gpt_pipeline_hybrid(32, num_chunks, **cfg)

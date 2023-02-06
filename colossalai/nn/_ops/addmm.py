@@ -1,6 +1,6 @@
 import torch
 from colossalai.tensor.op_wrapper import colo_op_impl
-from colossalai.tensor import ComputePattern, ComputePattern, ComputeSpec, ColoTensor
+from colossalai.tensor import ComputePattern, ComputeSpec, ColoTensor
 from colossalai.tensor import distspec, ColoTensorSpec, ShardSpec, ReplicaSpec
 from ._utils import GeneralTensor, Number, convert_to_colo_tensor
 from ._utils import reduce_input, reduce_grad
@@ -59,6 +59,7 @@ def colo_addmm(input_tensor: GeneralTensor,
     """Handles ``__torch_function__`` dispatch for ``torch.nn.functional.linear``.
     This method computes a linear.
     """
+    # mat2 is assumed to be a ColoTensor
     # At least one of the tensor should be ColoTensor
     assert isinstance(mat2, ColoTensor)
     input_tensor = convert_to_colo_tensor(input_tensor, mat2.get_process_group())

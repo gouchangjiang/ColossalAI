@@ -518,7 +518,8 @@ class ParallelContext(metaclass=SingletonMeta):
 
         torch.cuda.set_device(device_ordinal)
         if self._verbose:
-            self._logger.info(f'process rank {global_rank} is bound to device {device_ordinal}')
+            self._logger.info(f'process rank {global_rank} is ' 
+            f'bound to device {device_ordinal} on {socket.gethostname()}')
 
     def set_seed(self, seed: int):
         """Sets seeds for all random libraries.

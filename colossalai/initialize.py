@@ -89,6 +89,9 @@ def launch(config: Union[str, Path, Config, Dict],
     # set config
     assert isinstance(config, (Config, str, Path, dict)), \
         f'expected argument config to be Config, str or Path, but got {type(config)}'
+    if isinstance(config, dict):
+       if not config:
+        print('Warning: configuration is empty.') 
     if not isinstance(config, Config) and isinstance(config, dict):
         config = Config(config)
     if isinstance(config, (str, Path)):

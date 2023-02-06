@@ -46,7 +46,7 @@ class DistributedLogger:
                 'Logger with the same name has been created, you should use colossalai.logging.get_dist_logger')
         else:
             handler = None
-            formatter = logging.Formatter('colossalai - %(name)s - %(levelname)s: %(message)s')
+            formatter = logging.Formatter('%(name)s - %(levelname)s: %(message)s')
             try:
                 from rich.logging import RichHandler
                 handler = RichHandler(show_path=False, markup=True, rich_tracebacks=True)
