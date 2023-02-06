@@ -7,6 +7,7 @@ import torch
 import torch.nn as nn
 from commons.model_zoo import model_builder
 from commons.utils import get_data, get_profile_context, get_tflops, get_time_stamp
+from commons.tensorboard import set_tensorboard_writer, get_tensorboard_writer
 from packaging import version
 from torch.nn.parallel import DistributedDataParallel as DDP
 
@@ -64,6 +65,12 @@ def parse_args():
         type=int,
         default=10,
         help="training iterations for test",
+    )
+    parser.add_argument(
+        "--tensorboard_path",
+        type=str,
+        default="./tensorboard",
+        help="tensorboard working path",
     )
 
     args = parser.parse_args()
@@ -209,6 +216,7 @@ def main():
 
     logger = get_dist_logger()
     logger.info(f"{args.model_type}, {args.distplan}, batch size {BATCH_SIZE}", ranks=[0])
+    set_tensorboard_writer(get_time_stamp(), args.tensorboard_path)
 
     # build criterion
     criterion = GPTLMLoss()
@@ -330,6 +338,21 @@ def main():
             f"[{n + 1}/{NUM_STEPS}] Loss:{loss.item():.3f}, Step time: {step_time:.3f}s, TFLOPS: {get_tflops_func(step_time):.3f}, FWD time: {fwd_time:.3f}s, BWD time: {bwd_time:.3f}s, OPTIM time: {optim_time:.3f}s",
             ranks=[0],
         )
+
+        if torch.distributed.get_rank() == 0:
+            tensorboard_log = get_tensorboard_writer()
+            tensorboard_log.log_time(
+                {
+                    'step time(s)': step_time,
+                    'forward time(s)': fwd_time,
+                    'backward time(s)': bwd_time,
+                    'optimize time(s)': optim_time,
+                }, n + 1)
+            tensorboard_log.log({
+                'Loss per step': loss.item(),
+                'TFLOPS per GPU per step': get_tflops_func(step_time),
+            }, n + 1)
+
         if n >= WARMUP_STEPS:
             tflops_list.append(step_tflops)
 
