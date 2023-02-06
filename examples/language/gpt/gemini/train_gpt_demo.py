@@ -6,16 +6,17 @@ import psutil
 import torch
 import torch.nn as nn
 from commons.model_zoo import model_builder
-from commons.utils import get_data, get_profile_context, get_tflops, get_time_stamp
+from commons.utils import get_data, get_real_data, get_profile_context, get_tflops, get_time_stamp
 from packaging import version
 from torch.nn.parallel import DistributedDataParallel as DDP
+from dataset.webtext import WebtextDataset
 
 import colossalai
 from colossalai.logging import disable_existing_loggers, get_dist_logger
 from colossalai.nn.optimizer import HybridAdam
 from colossalai.nn.parallel import zero_model_wrapper, zero_optim_wrapper
 from colossalai.tensor import ColoParameter, ComputePattern, ComputeSpec, ProcessGroup, ReplicaSpec, ShardSpec
-from colossalai.utils import get_current_device
+from colossalai.utils import get_current_device, get_dataloader
 from colossalai.utils.model.colo_init_context import ColoInitContext
 
 CAI_VERSION = colossalai.__version__
@@ -64,6 +65,11 @@ def parse_args():
         type=int,
         default=10,
         help="training iterations for test",
+    )
+    parser.add_argument(
+        "--dataset_path",
+        type=str,
+        help="training dataset path",
     )
 
     args = parser.parse_args()
@@ -205,13 +211,27 @@ def main():
     WARMUP_STEPS = 1
     assert WARMUP_STEPS < NUM_STEPS, "warmup steps should smaller than the total steps"
     assert (NUM_STEPS - WARMUP_STEPS) % 2 == 1, "the number of valid steps should be odd to take the median"
-    PROF_FLAG = True    # The flag of profiling, False by default
+    PROF_FLAG = False    # The flag of profiling, False by default
 
     disable_existing_loggers()
     colossalai.launch_from_torch(config=cofig_dict)
 
     logger = get_dist_logger()
     logger.info(f"{args.model_type}, {args.distplan}, batch size {BATCH_SIZE}", ranks=[0])
+    
+    # Init dataloader
+    try:
+        DARASET_PATH = args.dataset_path
+        train_ds = WebtextDataset(path=DARASET_PATH, seq_len=SEQ_LEN)
+        train_dataloader = get_dataloader(train_ds,
+                                            seed=42,
+                                            batch_size=BATCH_SIZE,
+                                            pin_memory=True,
+                                            shuffle=True,
+                                            drop_last=False,
+                                            num_workers=0)
+    except BaseException as e:
+        logger.error(e)
 
     # build criterion
     criterion = GPTLMLoss()
@@ -301,9 +321,13 @@ def main():
 
     def train_step():
         # we just use randomly generated data here
-        input_ids, attn_mask = get_data(BATCH_SIZE, SEQ_LEN, VOCAB_SIZE)
-        optimizer.zero_grad()
+        # input_ids, attn_mask = get_data(BATCH_SIZE, SEQ_LEN, VOCAB_SIZE)
+        try:
+            input_ids, attn_mask = get_real_data(iter(train_dataloader))
+        except BaseException as e:
+            logger.error(e)
 
+        optimizer.zero_grad()
         start = time()
         outputs = model(input_ids, attn_mask)
         loss = criterion(outputs, input_ids)
