@@ -4,6 +4,8 @@ from contextlib import nullcontext
 import torch
 from torch.profiler import ProfilerActivity, profile, schedule, tensorboard_trace_handler
 from colossalai.utils import get_current_device
+from colossalai.utils.profiler.legacy import CommProfiler, ProfilerContext
+
 
 class DummyProfiler:
 
@@ -20,7 +22,8 @@ def get_data(batch_size, seq_len, vocab_size):
     attention_mask = torch.ones_like(input_ids)
     return input_ids, attention_mask
 
-def get_real_data(data_iter):    
+
+def get_real_data(data_iter):
     # Copy from colossalai/engine/schedule/_base_schedule.py:29
     def _move_tensor(element):
         if torch.is_tensor(element):
@@ -58,10 +61,17 @@ def get_tflops(model_numel, batch_size, seq_len, step_time):
     return model_numel * batch_size * seq_len * 8 / 1e12 / (step_time + 1e-12)
 
 
-def get_profile_context(enable_flag, warmup_steps, active_steps, save_dir):
+def get_comm_profile_context(enable_flag):
+    if enable_flag:
+        return ProfilerContext([CommProfiler()])
+    else:
+        return nullcontext(DummyProfiler())
+
+
+def get_torch_profile_context(enable_flag, warmup_steps, active_steps, save_dir):
     if enable_flag:
         return profile(activities=[ProfilerActivity.CPU, ProfilerActivity.CUDA],
-                       schedule=schedule(wait=0, warmup=warmup_steps, active=active_steps),
+                       schedule=schedule(wait=15, warmup=warmup_steps, active=active_steps),
                        on_trace_ready=tensorboard_trace_handler(save_dir),
                        record_shapes=True,
                        profile_memory=True)
