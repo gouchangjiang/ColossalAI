@@ -15,5 +15,5 @@ torchrun --nnodes=${NUM_NODES} \
 --batch_size=${BATCH_SIZE} \
 --placement=${PLACEMENT} ${USE_SHARD_INIT} \
 --distplan=${DISTPLAN} \
---train_step=${TRAIN_STEP}
+--train_step=${TRAIN_STEP} \
 --dataset_path=${DATASET_PATH}

@@ -4,10 +4,15 @@ from functools import partial
 import torch
 from torch.autograd.profiler import profile
 import torch.distributed as dist
-from torch.distributed import ReduceOp
+from torch.distributed import ReduceOp, get_backend
 from colossalai.utils import get_current_device
 from .prof_utils import BaseProfiler, _format_time, _format_memory, _format_bandwidth
 from typing import List, Optional
+from torch.autograd.profiler_util import FunctionEvent
+from dataclasses import dataclass
+from colossalai.logging import get_dist_logger
+from colossalai.utils.profiler.legacy.tb_writer import get_global_counter, get_tb_manager
+from torch.utils.tensorboard import SummaryWriter
 
 
 def _get_code_location(depth: int):
@@ -34,38 +39,78 @@ torch_broadcast = dist.broadcast
 torch_reduce = dist.reduce
 
 
-class CommEvent(object):
+# @dataclass
+class CommEvent:
     """Communication Event. Used for communication time and communication
     volume recording.
     """
 
-    def __init__(self, count: int = 0, comm_vol: float = 0., cuda_time: int = 0):
-        self.self_count = count
-        self.self_comm_vol = comm_vol
-        self.self_cuda_time = cuda_time
+    def __init__(self):
+        self.self_count = 0
+        self.self_comm_vol = 0.0
+        self.self_cuda_time = 0.0
+        self.max_self_cuda_time = 0
+        self.min_self_cuda_time = float('inf')
+
+        self.copy_cuda_time = 0.0
+        self.h2d_time = 0.0
+        self.h2d_count = 0
+        self.d2h_time = 0.0
+        self.d2h_count = 0
 
     def add(self, rhs):
         self.self_count += rhs.self_count
         self.self_comm_vol += rhs.self_comm_vol
         self.self_cuda_time += rhs.self_cuda_time
 
+        self.max_self_cuda_time = max(self.max_self_cuda_time, rhs.self_cuda_time)
+        self.min_self_cuda_time = min(self.min_self_cuda_time, rhs.self_cuda_time)
+
+        self.copy_cuda_time = rhs.copy_cuda_time
+        self.h2d_count = rhs.h2d_count
+        self.h2d_time = rhs.h2d_time
+        self.d2h_count = rhs.d2h_count
+        self.d2h_time = rhs.d2h_time
+
+    def __str__(self) -> str:
+        return "self_count:{}, self_comm_vol:{}, self_cuda_time:{}, copy_cuda_time:{}".format(
+            self.self_count, self.self_comm_vol, self.self_cuda_time, self.copy_cuda_time)
+
 
 class CommProfiler(BaseProfiler):
     """Communication profiler. Records all communication events.
     """
+    PCIE_KN_SET = {"Memcpy HtoD", "Memcpy DtoH", "aten::copy_"}
 
-    def __init__(self, depth: int = 0, total_count: int = 0, total_comm_vol: float = 0, total_cuda_time: int = 0):
+    def __init__(self,
+                 depth: int = 0,
+                 total_count: int = 0,
+                 total_comm_vol: float = 0,
+                 total_cuda_time: int = 0,
+                 writer: SummaryWriter = None):
         super().__init__(profiler_name="Collective_Communication", priority=0)
         self.depth = 3 + depth
         self.total_count = total_count
         self.total_comm_vol = total_comm_vol
         self.total_cuda_time = total_cuda_time
 
+        self.total_copy_cuda_time = 0
+        self.total_h2d_count = 0
+        self.total_h2d_time = 0
+        self.total_d2h_count = 0
+        self.total_d2h_time = 0
+
         self.ops_record = dict()
         self.profiler = None
         self.pending_op = None
         self.pending_metadata = None
         self.warn_flag = False
+
+        self.logger = get_dist_logger()
+        if dist.get_rank() == 0:
+            self.writer = writer if writer is not None else get_tb_manager().writer
+        else:
+            self.write = None
 
     def reset(self):
         self.total_count = 0
@@ -77,6 +122,12 @@ class CommProfiler(BaseProfiler):
         self.pending_op = None
         self.pending_metadata = None
         self.warn_flag = False
+
+        self.total_copy_cuda_time = 0
+        self.total_h2d_count = 0
+        self.total_h2d_time = 0
+        self.total_d2h_count = 0
+        self.total_d2h_time = 0
 
     def enable(self):
         dist.all_reduce = partial(all_reduce, profiler=self)
@@ -92,8 +143,14 @@ class CommProfiler(BaseProfiler):
         dist.broadcast = torch_broadcast
         dist.reduce = torch_reduce
 
-    def to_tensorboard(self, writer):
-        writer.add_text(tag="Collective Communication", text_string=self.result_str("\n\n"))
+    def step_to_tensorboard(self, kn, time, count):
+        # Watch out tensorboard webpage overload
+        self.writer.add_scalar(f'Collective Communication/{kn}', time, count)
+        self.writer.add_scalar(f'Collective Communication/step', count, get_global_counter())
+
+    def to_tensorboard(self, writer=None):
+        if self.writer:
+            self.writer.add_text(tag="Collective Communication", text_string=self.result_str())
 
     def to_file(self, filename: Path):
         with open(filename, "w") as f:
@@ -121,23 +178,32 @@ class CommProfiler(BaseProfiler):
         append("total cuda time: {}".format(_format_time(self.total_cuda_time)))
         append("average bandwidth: {}".format(_format_bandwidth(self.total_comm_vol, self.total_cuda_time)))
         append("total number of calls: {}".format(self.total_count))
+        append("time of data transmission (CPU -> GPU): {}".format(_format_time(self.total_h2d_time)))
+        append("number of transmission (CPU -> GPU): {}".format(self.total_h2d_count))
+        append("time of data transmission (GPU -> CPU): {}".format(_format_time(self.total_d2h_time)))
+        append("number of transmission (GPU -> CPU): {}".format(self.total_d2h_count))
+
         append("All events:")
 
         seperation = '-' * 74
-        row_format = '{:^10}' + '{:^12}' * 2 + '{:^16}' + '{:^12}' * 2
+        row_format = '{:^10}' + '{:^12}' * 2 + '{:^16}' + '{:^12}' * 3
 
         append(seperation)
-        append(row_format.format('Location', 'GPU time', 'Percentage', 'Comm volume', 'Bandwidth', 'Num of calls'))
+        append(
+            row_format.format('Location', 'GPU time', 'Percentage', 'Comm volume', 'Bandwidth', 'PCIe BW',
+                              'Num of calls'))
         append(seperation)
 
         show_list = sorted(self.ops_record.items(), key=lambda kv: -kv[1].self_cuda_time)
         for location, event in show_list:
+            event: CommEvent
             append(location)
             append(
                 row_format.format('', _format_time(event.self_cuda_time),
                                   '{:.1f}%'.format(event.self_cuda_time / self.total_cuda_time * 100.0),
                                   _format_memory(event.self_comm_vol),
-                                  _format_bandwidth(event.self_comm_vol, event.self_cuda_time), event.self_count))
+                                  _format_bandwidth(event.self_comm_vol, event.self_cuda_time),
+                                  _format_bandwidth(event.self_comm_vol, event.copy_cuda_time), event.self_count))
             append()
 
         return ''.join(res)
@@ -146,39 +212,78 @@ class CommProfiler(BaseProfiler):
     def has_aync_op(self):
         return self.pending_op is not None
 
-    def activate_profiler(self, kn: str, vol: float):
-        self.pending_metadata = (kn, _get_code_location(self.depth), vol)
+    def activate_profiler(self, kn: str, vol: float, backend: str = "nccl", async_op: bool = False):
+        self.pending_metadata = (kn, _get_code_location(self.depth), vol, backend, async_op)
         self.profiler = profile(enabled=True, use_cuda=True, use_cpu=True, use_kineto=True)
         self.profiler.__enter__()
 
     def close_profiler(self, group=None):
         assert self.profiler is not None, "There is no running dist op"
-        kernel_name, code_location, vol = self.pending_metadata
+        kernel_name, code_location, vol, backend, async_op = self.pending_metadata
         self.profiler.__exit__(None, None, None)
+        sync_time = 0
+        now_kn_count = 0
 
         if self.profiler.enabled and dist.get_world_size(group) > 1:
-            assert_flag = 0
-            current_comm_event = None
-            events = self.profiler.function_events
-            for event in events:
+            curr_event = CommEvent()
+            for event in self.profiler.function_events:
+                event: FunctionEvent
+                if event.name == "cudaDeviceSynchronize":
+                    sync_time = event.self_cpu_time_total
+                    continue
+                elif event.name == "Memcpy HtoD":
+                    curr_event.h2d_time += event.cuda_time_total
+                    curr_event.h2d_count += 1
+                elif event.name == "Memcpy DtoH":
+                    curr_event.d2h_count += 1
+                    curr_event.d2h_time += event.cuda_time_total
+                elif event.name == "aten::copy_":
+                    if len(event.input_shapes) == 0 or len(
+                            event.input_shapes[0]) == 0 or event.cuda_time_total == 0 or len(event.stack) == 0:
+                        continue
+                    curr_event.copy_cuda_time = event.cuda_time_total
+
                 if kernel_name in event.name:
-                    assert assert_flag == 0, "Multiple dist ops has been called "
-                    current_comm_event = CommEvent(1, vol, event.self_cuda_time_total)
-                    assert_flag += 1
+                    curr_event.self_count = 1
+                    curr_event.self_comm_vol = vol
+                    curr_event.self_cuda_time = event.self_cuda_time_total
 
-            assert current_comm_event is not None, "dist op has not been found"
-
-            buffer = torch.tensor([current_comm_event.self_cuda_time], device=get_current_device())
-            torch_all_reduce(buffer, op=ReduceOp.MIN, group=group)
-            current_comm_event.self_cuda_time = buffer.item()
-
-            self.total_count += current_comm_event.self_count
-            self.total_comm_vol += current_comm_event.self_comm_vol
-            self.total_cuda_time += current_comm_event.self_cuda_time
-            if code_location in self.ops_record:
-                self.ops_record[code_location].add(current_comm_event)
+            if curr_event.self_count == 0:
+                curr_event.self_count = 1
+                curr_event.self_comm_vol = vol
+                curr_event.self_cuda_time = sync_time
             else:
-                self.ops_record[code_location] = current_comm_event
+                buffer = torch.tensor([curr_event.self_cuda_time], device=get_current_device())
+                torch_all_reduce(buffer, op=ReduceOp.MIN, group=group)
+                curr_event.self_cuda_time = buffer.item()
+
+            if curr_event.self_count != 1:
+                if dist.get_rank() == 0:
+                    print("dist op num is not equal with 1", flush=True)
+                    print("kernel_name:{}, code_location:{}, vol:{}, backend:{}, async_op:{}".format(
+                        kernel_name, code_location, vol, backend, async_op),
+                          flush=True)
+                    print(self.profiler.function_events, flush=True)
+                self.logger.error("The number of communication primitives != 1.")
+
+            self.total_count += curr_event.self_count
+            self.total_comm_vol += curr_event.self_comm_vol
+            self.total_cuda_time += curr_event.self_cuda_time
+
+            self.total_copy_cuda_time += curr_event.copy_cuda_time
+            self.total_h2d_count += curr_event.h2d_count
+            self.total_h2d_time = +curr_event.h2d_time
+            self.total_d2h_count += curr_event.d2h_count
+            self.total_d2h_time += curr_event.d2h_time
+
+            if code_location in self.ops_record:
+                self.ops_record[code_location].add(curr_event)
+            else:
+                self.ops_record[code_location] = curr_event
+
+            if dist.get_rank() == 0:
+                self.step_to_tensorboard(code_location, curr_event.self_cuda_time,
+                                         self.ops_record[code_location].self_count)
 
         self.profiler = None
         self.pending_op = None
@@ -281,7 +386,10 @@ def broadcast(tensor: torch.Tensor,
     async_check(profiler)
 
     comm_vol = 1.0 * tensor.element_size() * tensor.numel()
-    profiler.activate_profiler("ncclKernel_Broadcast_", comm_vol)
+    backend = get_backend(group)
+    if get_backend(group) != "nccl":
+        profiler.logger.warrning("Can't profile non-nccl backend communication op.",)
+    profiler.activate_profiler("ncclKernel_Broadcast_", comm_vol, backend, async_op)
     profiler.pending_op = torch_broadcast(tensor, src, group, async_op)
 
     if async_op:

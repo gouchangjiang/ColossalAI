@@ -34,6 +34,8 @@ def _format_memory(nbytes):
 
 def _format_bandwidth(volme: float or int, time_us: int):
     sec_div_mb = (1000.0 / 1024.0)**2
+    if time_us == 0:
+        return 0
     mb_per_sec = volme / time_us * sec_div_mb
 
     if mb_per_sec >= 1024.0:

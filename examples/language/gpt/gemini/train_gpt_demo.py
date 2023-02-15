@@ -6,7 +6,7 @@ import psutil
 import torch
 import torch.nn as nn
 from commons.model_zoo import model_builder
-from commons.utils import get_data, get_real_data, get_profile_context, get_tflops, get_time_stamp
+from commons.utils import get_data, get_real_data, get_tflops, get_time_stamp, get_comm_profile_context
 from packaging import version
 from torch.nn.parallel import DistributedDataParallel as DDP
 from dataset.webtext import WebtextDataset
@@ -18,6 +18,7 @@ from colossalai.nn.parallel import zero_model_wrapper, zero_optim_wrapper
 from colossalai.tensor import ColoParameter, ComputePattern, ComputeSpec, ProcessGroup, ReplicaSpec, ShardSpec
 from colossalai.utils import get_current_device, get_dataloader
 from colossalai.utils.model.colo_init_context import ColoInitContext
+from colossalai.utils.profiler.legacy.tb_writer import set_tb_manager, get_tb_manager, set_global_counter
 
 CAI_VERSION = colossalai.__version__
 
@@ -65,6 +66,12 @@ def parse_args():
         type=int,
         default=10,
         help="training iterations for test",
+    )
+    parser.add_argument(
+        "--tensorboard_path",
+        type=str,
+        default="/mnt/lustre/wangguoteng.p/tensorboard",
+        help="tensorboard working path",
     )
     parser.add_argument(
         "--dataset_path",
@@ -194,9 +201,7 @@ def main():
     set_cpu_maximum_parallelism()
     args = parse_args()
 
-    cofig_dict=dict(parallel=dict(
-        pipeline=1, tensor=dict(size=args.tp_degree, mode='1d')
-    ))
+    cofig_dict = dict(parallel=dict(pipeline=1, tensor=dict(size=args.tp_degree, mode='1d')))
 
     if args.distplan not in ["CAI_ZeRO1", "CAI_ZeRO2", "CAI_Gemini", "Pytorch_DDP", "Pytorch_ZeRO"]:
         raise TypeError(f"{args.distplan} is error")
@@ -204,7 +209,7 @@ def main():
     # batch size per DP degree
     BATCH_SIZE = args.batch_size
     SEQ_LEN = 2048
-    VOCAB_SIZE = 51200 #50257
+    VOCAB_SIZE = 51200    #50257
 
     NUM_STEPS = args.train_step
 
@@ -218,21 +223,21 @@ def main():
 
     logger = get_dist_logger()
     logger.info(f"{args.model_type}, {args.distplan}, batch size {BATCH_SIZE}", ranks=[0])
-    
+
+    # Init tensorboard
+    set_tb_manager(get_time_stamp(), args.tensorboard_path)
+
     # Init dataloader
-    try:
-        DARASET_PATH = args.dataset_path
-        train_ds = WebtextDataset(path=DARASET_PATH, seq_len=SEQ_LEN)
-        train_dataloader = get_dataloader(train_ds,
-                                            seed=42,
-                                            batch_size=BATCH_SIZE,
-                                            pin_memory=True,
-                                            shuffle=True,
-                                            drop_last=False,
-                                            num_workers=0)
-        data_iter = iter(train_dataloader)
-    except BaseException as e:
-        logger.error(e)
+    DARASET_PATH = args.dataset_path
+    train_ds = WebtextDataset(path=DARASET_PATH, seq_len=SEQ_LEN)
+    train_dataloader = get_dataloader(train_ds,
+                                      seed=42,
+                                      batch_size=BATCH_SIZE,
+                                      pin_memory=True,
+                                      shuffle=True,
+                                      drop_last=False,
+                                      num_workers=0)
+    data_iter = iter(train_dataloader)
 
     # build criterion
     criterion = GPTLMLoss()
@@ -360,18 +365,35 @@ def main():
             f"[{n + 1}/{NUM_STEPS}] Loss:{loss.item():.3f}, Step time: {step_time:.3f}s, TFLOPS: {get_tflops_func(step_time):.3f}, FWD time: {fwd_time:.3f}s, BWD time: {bwd_time:.3f}s, OPTIM time: {optim_time:.3f}s",
             ranks=[0],
         )
+
+        if torch.distributed.get_rank() == 0:
+            set_global_counter(n + 1)
+            tensorboard_log = get_tb_manager()
+            tensorboard_log.log_time(
+                {
+                    'step time(s)': step_time,
+                    'forward time(s)': fwd_time,
+                    'backward time(s)': bwd_time,
+                    'optimize time(s)': optim_time,
+                }, n + 1)
+            tensorboard_log.log({
+                'Loss per step': loss.item(),
+                'TFLOPS per GPU per step': get_tflops_func(step_time),
+            }, n + 1)
+
         if n >= WARMUP_STEPS:
             tflops_list.append(step_tflops)
 
-    demo_profiler = get_profile_context(PROF_FLAG,
-                                        WARMUP_STEPS,
-                                        NUM_STEPS - WARMUP_STEPS,
-                                        save_dir=f"profile/{get_time_stamp()}-demo")
+    # f"profile/{get_time_stamp()}-demo"
+    # demo_profiler = get_torch_profile_context(PROF_FLAG, WARMUP_STEPS, 1, save_dir=args.tensorboard_path)
 
-    with demo_profiler as prof:
+    with get_comm_profile_context(PROF_FLAG) as prof:
         for n in range(NUM_STEPS):
             train_step()
-            prof.step()
+
+    if torch.distributed.get_rank() == 0:
+        prof.show()
+        prof.to_tensorboard(get_tb_manager().writer)
 
     tflops_list.sort()
     median_index = ((NUM_STEPS - WARMUP_STEPS) >> 1) + WARMUP_STEPS
